@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kubernetes: arhitektura, primene i istorija</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" />
+  <style>
+    .reveal h1, .reveal h2, .reveal h3 { text-transform: none; }
+    .reveal section small { font-size: 0.6em; opacity: 0.9; }
+    .reveal ul { font-size: 0.9em; }
+    .timeline { display: flex; justify-content: space-between; margin: 1em 0; font-size: 0.7em; }
+    .timeline span { background: #528; padding: 0.3em 0.6em; border-radius: 4px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; text-align: left; font-size: 0.75em; }
+    .arch-diagram { font-family: monospace; font-size: 0.5em; line-height: 1.4; text-align: left; }
+    .use-case { background: rgba(255,255,255,0.06); padding: 0.8em; border-radius: 8px; margin: 0.4em 0; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <section>
+        <h1>Kubernetes</h1>
+        <p>Arhitektura, primene i put od VM-ova do kontejnera</p>
+        <p><small>K8s = „K” + 8 slova + „s”</small></p>
+      </section>
+
+      <section>
+        <h2>Sadržaj</h2>
+        <ul>
+          <li>Istorijski kontekst: fizički serveri → VM-ovi → kontejneri</li>
+          <li>Šta je Kubernetes i zašto postoji</li>
+          <li>Arhitektura: kontrolna ravan i radni čvorovi</li>
+          <li>Ključni koncepti (Pod-ovi, Deployment-i, Service-i…)</li>
+          <li>Primene i kada koristiti K8s</li>
+        </ul>
+      </section>
+
+      <!-- ========== ISTORIJA ========== -->
+      <section>
+        <h2>Deo 1: Istorijske potrebe</h2>
+        <p>Od jedne aplikacije po serveru do orkestracije hiljada kontejnera</p>
+      </section>
+
+      <section>
+        <h2>Fizički serveri (početak 2000-ih)</h2>
+        <ul>
+          <li>Jedna aplikacija (ili nekoliko) po mašini</li>
+          <li>Teško skaliranje: kupovina novog hardvera, ručna konfiguracija</li>
+          <li>Nedovoljno iskorišćen kapacitet: CPU i RAM često u praznom hodu</li>
+          <li>Sporo nabavljane: dani ili nedelje za novi server</li>
+        </ul>
+        <p><small>Potreba: bolje iskorišćenje resursa i brže nabavljane</small></p>
+      </section>
+
+      <section>
+        <h2>Virtualizacija (VM-ovi)</h2>
+        <ul>
+          <li><strong>Hipervizor</strong> (VMware, KVM, Hyper-V) pokreće više <strong>VM-ova</strong> na jednom hostu</li>
+          <li>Svaki VM: pun OS (kernel, biblioteke, aplikacija) — jaka izolacija</li>
+          <li>Prednosti: konsolidacija, snapshot-i, migracija, multi-tenancy</li>
+          <li>Mana: teški — svaki VM je ceo OS, spor podizanje i velika potrošnja resursa</li>
+        </ul>
+        <p><small>Potreba: lakše i brže jedinice za deploy</small></p>
+      </section>
+
+      <section>
+        <h2>Kontejneri (2010-e)</h2>
+        <ul>
+          <li><strong>Kontejneri</strong> dele kernel hosta; izoluju procese, fajl sistem, mrežu</li>
+          <li>Docker (2013) je uveo image-e i alate u masovnu upotrebu: jednom napraviš, pokrećeš svuda</li>
+          <li>Znatno lakši od VM-ova: brzo podizanje, manje overhead-a, veća gustina</li>
+          <li>Rezultat: mnogo malih kontejnera po hostu → potreba za upravljanjem i raspoređivanjem</li>
+        </ul>
+        <p><small>Potreba: orkestracija u velikoj meri</small></p>
+      </section>
+
+      <section>
+        <h2>Od „pokreni kontejner” do „pokreni sistem”</h2>
+        <ul>
+          <li>Stotine ili hiljade kontejnera na mnogo mašina</li>
+          <li>Ko ih pokreće? Gde? Kako se međusobno pronalaze? Ko ih ponovo pokreće?</li>
+          <li>Potreba: <strong>orkestracija</strong> — raspoređivanje, mreža, skladištenje, skaliranje, rolling update-ovi</li>
+        </ul>
+        <p>To je problem koji <strong>Kubernetes</strong> rešava.</p>
+      </section>
+
+      <!-- ========== ŠTA JE K8S ========== -->
+      <section>
+        <h2>Šta je Kubernetes?</h2>
+        <blockquote style="font-size: 0.85em;">
+          „Kubernetes je open-source sistem za automatizaciju deploy-a, skaliranja i upravljanja kontejnerizovanim aplikacijama.”
+        </blockquote>
+        <ul>
+          <li>Nastao iz Google-ovog <strong>Borg</strong>-a / <strong>Omega</strong>-e; open-source od 2014. (v1.0 2015.)</li>
+          <li>Dan pod <strong>CNCF</strong>-om; podrazumevani izbor za orkestraciju kontejnera</li>
+          <li>Deklarativan: opisuješ željeno stanje; K8s teži da cluster to stanje ostvari</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Zašto koristiti Kubernetes?</h2>
+        <ul>
+          <li><strong>Prenosivost</strong> — isti API on-prem, AWS, GCP, Azure, edge</li>
+          <li><strong>Skaliranje</strong> — skaliraj aplikacije (i cluster) gore/dole</li>
+          <li><strong>Otpornost</strong> — ponovo pokreće pala kontejnere, zamenjuje čvorove</li>
+          <li><strong>Rolling update-i i rollback</strong> — deploy bez zastoja</li>
+          <li><strong>Ekosistem</strong> — Helm, operatori, service mesh-evi, alati za observability</li>
+        </ul>
+      </section>
+
+      <!-- ========== ARHITEKTURA ========== -->
+      <section>
+        <h2>Arhitektura: visoki nivo</h2>
+        <p>Dve strane: <strong>kontrolna ravan</strong> (mozak) i <strong>radni čvorovi</strong> (pokreću tvoje radno opterećenje)</p>
+        <div class="two-col">
+          <div>
+            <h3>Kontrolna ravan</h3>
+            <ul>
+              <li>API server</li>
+              <li>Scheduler</li>
+              <li>Controller manager</li>
+              <li>etcd (skladište stanja)</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Radni čvorovi</h3>
+            <ul>
+              <li>kubelet</li>
+              <li>kube-proxy</li>
+              <li>Container runtime (containerd, CRI-O)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Komponente kontrolne ravni</h2>
+        <ul>
+          <li><strong>API server</strong> — jedina ulazna tačka; REST API; validira i perzistira stanje</li>
+          <li><strong>Scheduler</strong> — dodeljuje nove Pod-ove čvorovima (resursi, ograničenja)</li>
+          <li><strong>Controller manager</strong> — mnogo kontrolera (Deployment, ReplicaSet, Node, …) koji posmatraju stanje i usklađuju (npr. „hoću 3 replike” → pokretanje/zaustavljanje Pod-ova)</li>
+          <li><strong>etcd</strong> — distribuirana key-value baza; izvor istine za stanje cluster-a</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Komponente radnog čvora</h2>
+        <ul>
+          <li><strong>kubelet</strong> — agent na svakom čvoru; osigurava da kontejneri rade kako kontrolna ravan određuje</li>
+          <li><strong>kube-proxy</strong> — mrežna pravila da Service-i (cluster IP, load balancing) rade</li>
+          <li><strong>Container runtime</strong> — pokreće kontejnere (containerd, CRI-O); implementira CRI (Container Runtime Interface)</li>
+        </ul>
+        <p><small>Tvoji Pod-ovi (kontejneri) rade na radnim čvorovima.</small></p>
+      </section>
+
+      <section>
+        <h2>Ključni koncepti (gradivni blokovi)</h2>
+        <ul>
+          <li><strong>Pod</strong> — najmanja jedinica za deploy; jedan ili više kontejnera koji dele mrežu/skladište</li>
+          <li><strong>Deployment</strong> — deklarativni update-i za Pod-ove (replike, rolling update, rollback)</li>
+          <li><strong>Service</strong> — stabilni mrežni identitet i load balancing ka Pod-ovima (ClusterIP, NodePort, LoadBalancer)</li>
+          <li><strong>ConfigMap / Secret</strong> — konfiguracija i osetljivi podaci</li>
+          <li><strong>Namespace</strong> — logičko grupisanje i izolacija unutar cluster-a</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Još koncepata</h2>
+        <ul>
+          <li><strong>StatefulSet</strong> — za stateful radna opterećenja (stabilan identitet, uređen deploy/skala)</li>
+          <li><strong>DaemonSet</strong> — jedan Pod po čvoru (npr. logovanje, monitoring)</li>
+          <li><strong>Ingress</strong> — HTTP(S) rutiranje u cluster</li>
+          <li><strong>HPA (Horizontal Pod Autoscaler)</strong> — skaliranje Pod-ova po CPU/memoriji ili custom metrikama</li>
+          <li><strong>PersistentVolume (PV) / PVC</strong> — trajno skladište za Pod-ove</li>
+        </ul>
+      </section>
+
+      <!-- ========== PRIMENE ========== -->
+      <section>
+        <h2>Primene</h2>
+        <p>Kada i kako organizacije koriste Kubernetes</p>
+      </section>
+
+      <section>
+        <h2>Mikroservisi i cloud-native aplikacije</h2>
+        <div class="use-case">
+          <strong>Primena:</strong> Mnogo malih servisa (API-ji, worker-i, UI-ji) koji se nezavisno skaliraju i deploy-uju.
+        </div>
+        <ul>
+          <li>Svaki servis = Deployment + Service (često i ConfigMap/Secret)</li>
+          <li>Service discovery preko DNS-a (npr. <code>my-svc.namespace.svc.cluster.local</code>)</li>
+          <li>Rolling update po servisu bez gašenja celog sistema</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>CI/CD i GitOps</h2>
+        <div class="use-case">
+          <strong>Primena:</strong> Push koda → pipeline gradi image-e → deploy u K8s (npr. Argo CD, Flux, Jenkins).
+        </div>
+        <ul>
+          <li>Kubernetes kao cilj za sve okruženja (dev/stage/prod)</li>
+          <li>Deklarativni manifesti u Git-u; alati usklađuju stanje cluster-a sa Git-om (GitOps)</li>
+          <li>Konzistentni, revidirani, ponovljivi deploy-i</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Hibridni i multi-cloud</h2>
+        <div class="use-case">
+          <strong>Primena:</strong> Ista aplikacija radi on-prem, u jednom ili više oblaka, ili na edge-u.
+        </div>
+        <ul>
+          <li>Kubernetes API je standardizovan; dobavljači nude managed K8s (EKS, GKE, AKS, OpenShift)</li>
+          <li>Manje vendor lock-in-a; iste veštine i alati u svim okruženjima</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Batch poslovi i obrada podataka</h2>
+        <div class="use-case">
+          <strong>Primena:</strong> Jednokratni ili zakazani poslovi (CronJob), ML trening, ETL.
+        </div>
+        <ul>
+          <li><strong>Job</strong> — radi do završetka (npr. migracioni skript)</li>
+          <li><strong>CronJob</strong> — radi po rasporedu</li>
+          <li>Cluster može automatski skalirati čvorove (npr. Karpenter, cluster autoscaler) za burst radna opterećenja</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Visoka dostupnost i oporavak od katastrofe</h2>
+        <ul>
+          <li>Replike raspoređene na čvorove/zone; pad čvora ne obara aplikaciju</li>
+          <li>Više čvorova kontrolne ravni + etcd za HA</li>
+          <li>Backup/restore etcd-a i perzistentnih podataka; replikacija cluster-a između regiona za DR</li>
+        </ul>
+      </section>
+
+      <!-- ========== ZAVRŠETAK ========== -->
+      <section>
+        <h2>Rezime</h2>
+        <ul>
+          <li><strong>Istorija:</strong> Fizički serveri → VM-ovi (virtualizacija) → kontejneri (Docker) → potreba za orkestracijom → Kubernetes</li>
+          <li><strong>K8s:</strong> Deklarativna, prenosiva platforma za pokretanje i upravljanje kontejnerizovanim radnim opterećenjima</li>
+          <li><strong>Arhitektura:</strong> Kontrolna ravan (API, scheduler, kontroleri, etcd) + radnici (kubelet, kube-proxy, runtime)</li>
+          <li><strong>Primene:</strong> Mikroservisi, CI/CD, hibridni/multi-cloud, batch/ML, HA/DR</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Hvala</h2>
+        <p>Pitanja?</p>
+        <p><small>Korisni linkovi: kubernetes.io/docs · github.com/kubernetes/kubernetes</small></p>
+      </section>
+
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      plugins: [ RevealNotes ]
+    });
+  </script>
+</body>
+</html>

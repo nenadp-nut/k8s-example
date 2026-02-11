@@ -1,0 +1,79 @@
+# Deployment: Java Spring Boot Mongo service (replicas, resource limits, ConfigMap)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-mongo-service
+  namespace: k8s-tutorial
+  labels:
+    app: java-mongo-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: java-mongo-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-mongo-service
+  namespace: k8s-tutorial
+  labels:
+    app: java-mongo-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: java-mongo-service
+  template:
+    metadata:
+      labels:
+        app: java-mongo-service
+    spec:
+      containers:
+        - name: java-mongo-service
+          image: java-mongo-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MONGO_SERVICE_APP_NAME
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: PORT
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://mongo-0.mongo-service:27017"
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MONGO_DB
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5

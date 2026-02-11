@@ -1,0 +1,96 @@
+# Deployment: Go service (multiple replicas, resource limits, ConfigMap/Secret)
+# Demo: scaling (replicas), resource requests/limits, env from ConfigMap and Secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-service
+  namespace: k8s-tutorial
+  labels:
+    app: go-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: go-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-service
+  namespace: k8s-tutorial
+  labels:
+    app: go-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: go-service
+  template:
+    metadata:
+      labels:
+        app: go-service
+    spec:
+      containers:
+        - name: go-service
+          image: go-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: APP_NAME
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: PORT
+            - name: POSTGRES_HOST
+              value: "postgres-0.postgres-service"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_SERVICE_URL
+              value: "http://python-redis-service:8080"
+            - name: MONGO_SERVICE_URL
+              value: "http://java-mongo-service:8080"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5

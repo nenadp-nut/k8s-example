@@ -1,0 +1,18 @@
+# Optional: NodePort to access Go API from outside the cluster (e.g. minikube, kind)
+# Use kubectl port-forward in production; NodePort is for local demo.
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-service-nodeport
+  namespace: k8s-tutorial
+  labels:
+    app: go-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+      name: http
+  selector:
+    app: go-service

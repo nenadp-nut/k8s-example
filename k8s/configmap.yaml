@@ -1,0 +1,24 @@
+# ConfigMap: non-sensitive configuration for all services
+# Demo: central config, env injection, feature flags
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: k8s-tutorial
+  labels:
+    app: k8s-tutorial
+data:
+  # Go / Postgres service
+  APP_NAME: "go-postgres-service"
+  POSTGRES_DB: "appdb"
+  POSTGRES_USER: "appuser"
+  # Python Redis service
+  CACHE_TTL_SECONDS: "300"
+  REDIS_SERVICE_APP_NAME: "python-redis-service"
+  # Java Mongo service
+  MONGO_SERVICE_APP_NAME: "java-mongo-service"
+  MONGO_DB: "appdb"
+  MONGO_COLLECTION: "documents"
+  # Shared
+  LOG_LEVEL: "info"
+  PORT: "8080"

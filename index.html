@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kubernetes: Architecture, Use Cases & History</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" />
+  <style>
+    .reveal h1, .reveal h2, .reveal h3 { text-transform: none; }
+    .reveal section small { font-size: 0.6em; opacity: 0.9; }
+    .reveal ul { font-size: 0.9em; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; text-align: left; font-size: 0.75em; }
+    .use-case { background: rgba(255,255,255,0.06); padding: 0.8em; border-radius: 8px; margin: 0.4em 0; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <section>
+        <h1>Kubernetes</h1>
+        <p>Architecture, use cases &amp; the path from VMs to containers</p>
+        <p><small>K8s = “K” + 8 letters + “s”</small></p>
+      </section>
+
+      <section>
+        <h2>Agenda</h2>
+        <ul>
+          <li>Historical needs: physical servers → VMs → containers</li>
+          <li>What is Kubernetes and why it exists</li>
+          <li>Architecture: control plane &amp; workers</li>
+          <li>Key concepts (Pods, Deployments, Services…)</li>
+          <li>Use cases and when to use K8s</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Part 1: Historical needs</h2>
+        <p>How we got from one app per server to orchestrating thousands of containers</p>
+      </section>
+
+      <section>
+        <h2>Physical servers (early 2000s)</h2>
+        <ul>
+          <li>One application (or a few) per machine</li>
+          <li>Hard to scale: buy more hardware, manual setup</li>
+          <li>Underused capacity: CPU and RAM often idle</li>
+          <li>Slow provisioning: days or weeks for a new server</li>
+        </ul>
+        <p><small>Need: better utilization and faster provisioning</small></p>
+      </section>
+
+      <section>
+        <h2>Virtualization (VMs)</h2>
+        <ul>
+          <li><strong>Hypervisor</strong> (VMware, KVM, Hyper-V) runs multiple <strong>VMs</strong> on one host</li>
+          <li>Each VM: full OS (kernel, libs, app) — strong isolation</li>
+          <li>Benefits: consolidation, snapshots, migration, multi-tenancy</li>
+          <li>Drawback: heavy — each VM is a full OS, slow to boot and resource-heavy</li>
+        </ul>
+        <p><small>Need: lighter, faster units of deployment</small></p>
+      </section>
+
+      <section>
+        <h2>Containers (2010s)</h2>
+        <ul>
+          <li><strong>Containers</strong> share the host kernel; isolate processes, filesystem, network</li>
+          <li>Docker (2013) made images and tooling mainstream: build once, run anywhere</li>
+          <li>Much lighter than VMs: fast start, less overhead, higher density</li>
+          <li>Result: many small containers per host → need to manage and schedule them</li>
+        </ul>
+        <p><small>Need: orchestration at scale</small></p>
+      </section>
+
+      <section>
+        <h2>From “run a container” to “run the system”</h2>
+        <ul>
+          <li>Hundreds or thousands of containers across many machines</li>
+          <li>Who starts them? Where? How do they find each other? Who restarts them?</li>
+          <li>Need: <strong>orchestration</strong> — scheduling, networking, storage, scaling, rolling updates</li>
+        </ul>
+        <p>That’s the problem <strong>Kubernetes</strong> solves.</p>
+      </section>
+
+      <section>
+        <h2>What is Kubernetes?</h2>
+        <blockquote style="font-size: 0.85em;">
+          “Kubernetes is an open-source system for automating deployment, scaling, and management of containerized applications.”
+        </blockquote>
+        <ul>
+          <li>Born from Google’s <strong>Borg</strong> / <strong>Omega</strong>; open-sourced in 2014 (v1.0 in 2015)</li>
+          <li>Now under the <strong>CNCF</strong>; default choice for container orchestration</li>
+          <li>Declarative: you describe desired state; K8s tries to make the cluster match it</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Why use Kubernetes?</h2>
+        <ul>
+          <li><strong>Portability</strong> — same API on-prem, AWS, GCP, Azure, edge</li>
+          <li><strong>Scaling</strong> — scale apps (and the cluster) up/down</li>
+          <li><strong>Resilience</strong> — restarts failed containers, replaces nodes</li>
+          <li><strong>Rolling updates &amp; rollbacks</strong> — zero-downtime deployments</li>
+          <li><strong>Ecosystem</strong> — Helm, operators, service meshes, observability tools</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Architecture: high level</h2>
+        <p>Two sides: <strong>control plane</strong> (brains) and <strong>worker nodes</strong> (run your workloads)</p>
+        <div class="two-col">
+          <div>
+            <h3>Control plane</h3>
+            <ul>
+              <li>API server</li>
+              <li>Scheduler</li>
+              <li>Controller manager</li>
+              <li>etcd (state store)</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Worker nodes</h3>
+            <ul>
+              <li>kubelet</li>
+              <li>kube-proxy</li>
+              <li>Container runtime (containerd, CRI-O)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Control plane components</h2>
+        <ul>
+          <li><strong>API server</strong> — only entrypoint; REST API; validates and persists state</li>
+          <li><strong>Scheduler</strong> — assigns new Pods to nodes (resources, constraints)</li>
+          <li><strong>Controller manager</strong> — many controllers (Deployment, ReplicaSet, Node, …) that watch state and reconcile (e.g. “I want 3 replicas” → start/stop Pods)</li>
+          <li><strong>etcd</strong> — distributed key-value store; source of truth for cluster state</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Worker node components</h2>
+        <ul>
+          <li><strong>kubelet</strong> — agent on each node; ensures containers run as specified by the control plane</li>
+          <li><strong>kube-proxy</strong> — network rules so Services (cluster IP, load balancing) work</li>
+          <li><strong>Container runtime</strong> — runs containers (containerd, CRI-O); implements CRI (Container Runtime Interface)</li>
+        </ul>
+        <p><small>Your Pods (containers) run on worker nodes.</small></p>
+      </section>
+
+      <section>
+        <h2>Key concepts (building blocks)</h2>
+        <ul>
+          <li><strong>Pod</strong> — smallest deployable unit; one or more containers sharing network/storage</li>
+          <li><strong>Deployment</strong> — declarative updates for Pods (replicas, rolling update, rollback)</li>
+          <li><strong>Service</strong> — stable network identity and load balancing to Pods (ClusterIP, NodePort, LoadBalancer)</li>
+          <li><strong>ConfigMap / Secret</strong> — configuration and sensitive data</li>
+          <li><strong>Namespace</strong> — logical grouping and isolation within a cluster</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>More concepts</h2>
+        <ul>
+          <li><strong>StatefulSet</strong> — for stateful workloads (stable identity, ordered deploy/scale)</li>
+          <li><strong>DaemonSet</strong> — one Pod per node (e.g. logging, monitoring)</li>
+          <li><strong>Ingress</strong> — HTTP(S) routing into the cluster</li>
+          <li><strong>HPA (Horizontal Pod Autoscaler)</strong> — scale Pods by CPU/memory or custom metrics</li>
+          <li><strong>PersistentVolume (PV) / PVC</strong> — durable storage for Pods</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Use cases</h2>
+        <p>When and how organizations use Kubernetes</p>
+      </section>
+
+      <section>
+        <h2>Microservices &amp; cloud-native apps</h2>
+        <div class="use-case">
+          <strong>Use case:</strong> Many small services (APIs, workers, UIs) that scale and deploy independently.
+        </div>
+        <ul>
+          <li>Each service = Deployment + Service (and often ConfigMap/Secret)</li>
+          <li>Service discovery via DNS (e.g. <code>my-svc.namespace.svc.cluster.local</code>)</li>
+          <li>Rolling updates per service without taking the whole system down</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>CI/CD &amp; GitOps</h2>
+        <div class="use-case">
+          <strong>Use case:</strong> Push code → pipeline builds images → deploy to K8s (e.g. Argo CD, Flux, Jenkins).
+        </div>
+        <ul>
+          <li>Kubernetes as the target for all environments (dev/stage/prod)</li>
+          <li>Declarative manifests in Git; tools sync cluster state to Git (GitOps)</li>
+          <li>Consistent, auditable, repeatable deployments</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Hybrid &amp; multi-cloud</h2>
+        <div class="use-case">
+          <strong>Use case:</strong> Same app runs on-prem, in one or more clouds, or at the edge.
+        </div>
+        <ul>
+          <li>Kubernetes API is standardized; vendors offer managed K8s (EKS, GKE, AKS, OpenShift)</li>
+          <li>Reduces lock-in; same skills and tooling across environments</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Batch jobs &amp; data processing</h2>
+        <div class="use-case">
+          <strong>Use case:</strong> One-off or scheduled jobs (CronJob), ML training, ETL.
+        </div>
+        <ul>
+          <li><strong>Job</strong> — run to completion (e.g. migration script)</li>
+          <li><strong>CronJob</strong> — run on a schedule</li>
+          <li>Cluster can autoscale nodes (e.g. Karpenter, cluster autoscaler) for bursty workloads</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>High availability &amp; disaster recovery</h2>
+        <ul>
+          <li>Replicas spread across nodes/zones; node failure doesn’t take down the app</li>
+          <li>Multiple control plane nodes + etcd for HA</li>
+          <li>Backup/restore of etcd and persistent data; replicate clusters across regions for DR</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Summary</h2>
+        <ul>
+          <li><strong>History:</strong> Physical servers → VMs (virtualization) → containers (Docker) → need for orchestration → Kubernetes</li>
+          <li><strong>K8s:</strong> Declarative, portable platform for running and managing containerized workloads</li>
+          <li><strong>Architecture:</strong> Control plane (API, scheduler, controllers, etcd) + workers (kubelet, kube-proxy, runtime)</li>
+          <li><strong>Use cases:</strong> Microservices, CI/CD, hybrid/multi-cloud, batch/ML, HA/DR</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Thank you</h2>
+        <p>Questions?</p>
+        <p><small>Useful links: kubernetes.io/docs · github.com/kubernetes/kubernetes</small></p>
+      </section>
+
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      plugins: [ RevealNotes ]
+    });
+  </script>
+</body>
+</html>

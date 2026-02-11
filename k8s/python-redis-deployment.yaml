@@ -1,0 +1,81 @@
+# Deployment: Python Redis service (replicas, resource limits, ConfigMap)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-redis-service
+  namespace: k8s-tutorial
+  labels:
+    app: python-redis-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: python-redis-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-redis-service
+  namespace: k8s-tutorial
+  labels:
+    app: python-redis-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-redis-service
+  template:
+    metadata:
+      labels:
+        app: python-redis-service
+    spec:
+      containers:
+        - name: python-redis-service
+          image: python-redis-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REDIS_SERVICE_APP_NAME
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: PORT
+            - name: CACHE_TTL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: CACHE_TTL_SECONDS
+            - name: REDIS_HOST
+              value: "redis-0.redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
